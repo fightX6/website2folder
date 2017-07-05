@@ -8,8 +8,9 @@ import os
 
 
 def filecreate(path, content):
-    if not os.path.exists(path):
-        os.mkdir(path)
+    filepath = os.path.split(path)[0]
+    if not os.path.exists(filepath):
+        os.makedirs(filepath)
     f = open(path, "w")
     f.write(content)
     f.flush()
@@ -17,18 +18,18 @@ def filecreate(path, content):
 
 
 def parser(html):
-    content = html.file.content
-    path = html.file.path
+    content = html['file']['content']
+    path = html['file']['path']
     print(path)
-    for kurl, vurl in html.url_mapping.items():
+    for kurl, vurl in html['url_mapping'].items():
         content = content.replace(kurl, vurl)
-    for kurl, vurl in html.children_url_mapping.items():
+    for kurl, vurl in html['children_url_mapping'].items():
         content = content.replace(kurl, vurl)
-    filecreate(path.abspath, content)
+    filecreate(path['abspath'], content)
 
 
 def run():
-    root = ParserHtml('https://www.baidu.com/')
+    root = ParserHtml(u'http://www.iconfont.cn/')
     root.parser()
     requests = threadpool.makeRequests(parser, Config.files)
     [Config.pool.putRequest(req) for req in requests]

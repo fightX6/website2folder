@@ -1,10 +1,9 @@
 #!/usr/local/bin/python
 # -*- coding: UTF-8 -*-
-# 请求url, 支持 HTTP(0.9/1.0) / FTP / 本地文件 / URL
-from urllib.request import *
-# 解析url, 支持 file / ftp / gopher / hdl / http / https / imap / mailto / mms / news / nntp /
+# request 请求url, 支持 HTTP(0.9/1.0) / FTP / 本地文件 / URL
+# parse 解析url, 支持 file / ftp / gopher / hdl / http / https / imap / mailto / mms / news / nntp /
 # prospero / rsync / rtsp / rtspu / sftp / shttp / sip / sips / snews / svn / svn+ssh / telnet / wais
-from urllib.parse import *
+import urllib
 from config import Config
 
 __all__ = ['Parser']
@@ -45,13 +44,13 @@ class Parser:
             # url 可能是data:image/png;这种类型的图片 不做解析
             return
         if not url.startswith(u'http'):  # ../  及  /...
-            url = urljoin(parent_url, url)  # 从相对路径获取绝对路径
+            url = urllib.parse.urljoin(parent_url, url)  # 从相对路径获取绝对路径
 
         # 开始解析
         # urlparse返回 ParseResult(scheme='http', netloc='segmentfault.com',
         # path='/blog/biu/1190000000330941', params='', query='', fragment='')
-        result = urlparse(url)
-        f = urlopen(url)  # 创建一个表示远程url的类文件对象，然后像本地文件一样操作这个类文件对象来获取远程数据
+        result = urllib.parse.urlparse(url)
+        f = urllib.request.urlopen(url)  # 创建一个表示远程url的类文件对象，然后像本地文件一样操作这个类文件对象来获取远程数据
         # file.info = f.info()  # http header:返回一个httplib.HTTPMessage 对象,表示远程服务器返回的头信息
         # file.code = f.getcode()  # 返回Http状态码。如果是http请求，200表示请求成功完成;404表示网址未找到
         # file.requestURL = f.geturl()  # 返回请求的url
