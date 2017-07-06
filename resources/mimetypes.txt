@@ -6,7 +6,6 @@ application/x-authorware-bin    aab
 application/x-authorware-map    aam
 application/x-authorware-seg    aas
 text/vnd.abc    abc
-text/html    acgi
 video/animaflex    afl
 application/postscript    ai
 audio/aiff    aif
@@ -176,11 +175,7 @@ application/x-binhex40    hqx
 application/x-mac-binhex40    hqx
 application/hta    hta
 text/x-component    htc
-text/html    htm
-text/html    html
-text/html    htmls
 text/webviewhtml    htt
-text/html    htx
 x-conference/x-cooltalk    ice
 image/x-icon    ico
 text/plain    idc
@@ -217,6 +212,8 @@ image/jpeg    jpg
 image/pjpeg    jpg
 image/x-jps    jps
 application/x-javascript    js
+application/javascript    js
+text/javascript    js
 image/jutvision    jut
 audio/midi    kar
 music/x-karaoke    kar
@@ -452,7 +449,7 @@ application/x-shar    sh
 text/x-script.sh    sh
 application/x-bsh    shar
 application/x-shar    shar
-text/html    shtml
+text/html    html
 text/x-server-parsed-html    shtml
 audio/x-psid    sid
 application/x-sit    sit

@@ -3,12 +3,13 @@
 # Created by xf on 2017/7/4.
 from config import Config
 import urllib
+from urllib import request
 # from parser import Parser
 # 解析html
 import bs4
 from bs4 import BeautifulSoup
 import gzip
-from io import StringIO
+import io
 
 __all__ = ['ParserHtml']
 
@@ -22,13 +23,12 @@ class ParserHtml:
             u"url": wait_parse_url,
             u"file": {
                 u'content': None,
-                u'path': None
+                u'path': None,
+                u'encode': 'utf-8'
             },
             u"parent_file": parent_file,
             # 真实url 映射 转换后的url
-            u'url_mapping': {},
-            # 真实url 映射 转换后的url
-            u"children_url_mapping": {}
+            u'url_mapping': {}
         }
 
     def parser(self):
@@ -40,35 +40,18 @@ class ParserHtml:
         Config.files.append(self.current_file)
         file = self.current_file[u'file'][u'content']
         ext = self.current_file[u'file'][u'path'][u'ext']
-        # 自己的映射
-        self.current_file[u'url_mapping'][self.url] = self.current_file[u'file'][u'path'][u'path']
         if ext == '.html':
             soup = BeautifulSoup(file, u"html.parser")
-            # 解析head里的 link 和 script
-            for tag in soup.head.contents:
+            # 解析 a 、 img 、script  link
+            for tag in soup.descendants:
                 if type(tag) == bs4.element.NavigableString:
                     continue
-                # print(u'head的所有子孙标签', tag)
+                # print(u'所有标签', tag)
                 url = self.parser_attrs(tag)
                 if url is None or url == '':
                     continue
                 p = ParserHtml(url, self.current_file)
                 p.parser()
-                self.current_file[u'children_url_mapping'][url] = p.current_file[u'file'][u'path'][u'path']
-                # Config.files_mapping[url] = p.current_file[u'file'][u'path'][u'path']
-            # 解析body里的 a 、 img 、script
-            for tag in soup.body.descendants:
-                if type(tag) == bs4.element.NavigableString:
-                    continue
-                # print(u'body的所有子孙标签', tag)
-                url = self.parser_attrs(tag)
-                if url is None or url == u'':
-                    continue
-                Config.files_mapping[url] = ''
-                p = ParserHtml(url, self.current_file)
-                p.parser()
-                self.current_file[u'children_url_mapping'][url] = p.current_file[u'file'][u'path'][u'path']
-                # Config.files_mapping[url] = p.current_file[u'file'][u'path'][u'path']
 
     def readfile(self):
         # 准备参数
@@ -94,11 +77,29 @@ class ParserHtml:
         # urlparse返回 ParseResult(scheme='http', netloc='segmentfault.com',
         # path='/blog/biu/1190000000330941', params='', query='', fragment='')
         result = urllib.parse.urlparse(url)
-        f = urllib.request.urlopen(url)  # 创建一个表示远程url的类文件对象，然后像本地文件一样操作这个类文件对象来获取远程数据
-        # file.info = f.info()  # http header:返回一个httplib.HTTPMessage 对象,表示远程服务器返回的头信息
-        # file.code = f.getcode()  # 返回Http状态码。如果是http请求，200表示请求成功完成;404表示网址未找到
-        # file.requestURL = f.geturl()  # 返回请求的url
-        # for line in f.readlines():  # 就像在操作本地文件
+        # # 在headers中设置agent
+        user_agent = u"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " + \
+                     u" Chrome/51.0.2704.103 Safari/537.36"
+        # 对付“反盗链”(服务器会识别headers中的referer是不是它自己,如果不是则不响应),构建以下headers
+        try:
+            parentfile = self.current_file[u'parent_file'][u'current_file']
+        except Exception as e:
+            parentfile = None
+
+        referer = '' if parentfile is None else parentfile[u'url']
+
+        req = request.Request(url)
+        req.add_header("User-Agent", user_agent)
+        if referer != '' and referer is not None:
+            req.add_header("Referer", referer)
+        if result.path.find('.') == -1 or result.path[result.path.find('.'):result.path.find('.')+4] == '.htm':
+            req.add_header("Accept-Encoding", 'gzip,deflate')
+
+        response = request.urlopen(req)  # 创建一个表示远程url的类文件对象，然后像本地文件一样操作这个类文件对象来获取远程数据
+        # file.info = response.info()  # http header:返回一个httplib.HTTPMessage 对象,表示远程服务器返回的头信息
+        # file.code = response.getcode()  # 返回Http状态码。如果是http请求，200表示请求成功完成;404表示网址未找到
+        # file.requestURL = response.geturl()  # 返回请求的url
+        # for line in response.readlines():  # 就像在操作本地文件
         """
             调用read()会一次性读取文件的全部内容，如果文件有10G，内存就爆了，所以，要保险起见，
             可以反复调用read(size)方法，每次最多读取size个字节的内容。另外，调用readline()可以每次读取一行内容，
@@ -106,38 +107,34 @@ class ParserHtml:
         """
         #   pass
 
-        isGzip = f.info().get(u'Content-Encoding')
+        isGzip = response.info().get(u'Content-Encoding')
         if isGzip == 'gzip':
-            compresseddata = f.read()
-            compressedstream = StringIO.StringIO(compresseddata)
-            gzipper = gzip.GzipFile(fileobj=compressedstream)
+            # buf = io.StringIO(response.read())
+            gzipper = gzip.GzipFile(fileobj=response)
             data = gzipper.read()
+            data = data.decode(Config.encode(response.info()))
         else:
-            data = f.read()
-        data = data.decode(Config.encode(f.info()))
+            data = response.read()
         file[u'content'] = data
-        f.close()
-        file[u'path'] = Config.path(result.path, Config.ext(f.info()))  # 从根路径开始的路径
-
-    # def handlebinarydata(self, strdata):
-    #     content_type = strdata.split(';')[0].split(':')[1]
-    #     data = base64.b64decode(strdata)
-    #     with open('', 'wb') as f:
-    #         f.write(data)
-    #         f.close()
+        file[u'path'] = Config.path(result.path, Config.ext(response.info()))  # 从根路径开始的路径
+        file[u'encode'] = Config.encode(response.info())
+        response.close()
+        # 保存自己的真实url映射本地的相对url
+        self.current_file[u'url_mapping'][url] = file[u'path'][u'path']
 
     @staticmethod
     def parser_attrs(tag):
-        attrs = tag.attrs
         try:
-            if tag.name == 'link':
-                return attrs['href']
-            if tag.name == 'script':
-                return attrs['src']
-            if tag.name == 'a':
-                return attrs['href']
-            if tag.name == 'img':
-                return attrs['href']
+            if type(tag) == bs4.element.Tag:
+                attrs = tag.attrs
+                if tag.name == 'link':
+                    return attrs['href']
+                if tag.name == 'script':
+                    return attrs['src']
+                if tag.name == 'a':
+                    return attrs['href']
+                if tag.name == 'img':
+                    return attrs['href']
         except Exception as ex:
             print(ex)
         return None
